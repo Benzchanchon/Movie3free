@@ -1,0 +1,3 @@
+เปิดredis
+1.เปิด cmd ใน โหมด admin 
+ใช้ redis-server
