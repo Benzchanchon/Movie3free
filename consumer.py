@@ -5,11 +5,13 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
+import json
 
 # ตั้งค่า RabbitMQ
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 channel.queue_declare(queue='recommend_queue')
+channel.queue_declare(queue='response_queue')  # Queue สำหรับส่งกลับผลลัพธ์
 
 # ตั้งค่า Redis
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -43,6 +45,9 @@ def callback(ch, method, properties, body):
     data = json.loads(body)
     customer_id = data['customer_id']
     interest_movie = data['interest_movie']
+    print(customer_id)
+    print(interest_movie)
+    print("################################################")
     previous_recommendations = redis_client.get(customer_id)
     previous_recommendations = json.loads(previous_recommendations) if previous_recommendations else []
 
@@ -55,8 +60,28 @@ def callback(ch, method, properties, body):
         recommended_movie = np.random.choice(available_movies, 1, replace=False)[0]
         previous_recommendations.append(recommended_movie['Title'])
         redis_client.set(customer_id, json.dumps(previous_recommendations))
-        # ส่งกลับผลลัพธ์ (สามารถใช้ RabbitMQ หรือวิธีการอื่นๆ)
-        print(json.dumps(recommended_movie))
+        result = json.dumps(recommended_movie, ensure_ascii=False)
+        print(result)
+        
+        # ส่งผลลัพธ์กลับไปยังคิว response_queue และระบุ correlation_id
+        if properties.correlation_id:
+            ch.basic_publish(
+                exchange='',
+                routing_key=properties.reply_to,
+                properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+                body=result.encode('utf-8')
+            )
+    else:
+        # ส่งข้อความว่าหาไม่เจอหนังที่แนะนำ
+        result = json.dumps({'error': 'No more movies to recommend'}, ensure_ascii=False)
+        print(result)
+        if properties.correlation_id:
+            ch.basic_publish(
+                exchange='',
+                routing_key=properties.reply_to,
+                properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+                body=result.encode('utf-8')
+            )
 
 channel.basic_consume(queue='recommend_queue', on_message_callback=callback, auto_ack=True)
 print('Waiting for messages. To exit press CTRL+C')

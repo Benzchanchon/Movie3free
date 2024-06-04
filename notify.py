@@ -28,7 +28,7 @@ def check_using():
     return
 
 # Schedule job to run every Saturday at 7 PM
-schedule.every().saturday.at("19:24").do(send_message)
+schedule.every().saturday.at("19:00").do(send_message)
 
 # Infinite loop to run the scheduler
 try:

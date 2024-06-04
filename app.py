@@ -20,7 +20,7 @@ app.config.from_object(Config)
 app.secret_key = 'supersecretkey'
 
 # YouTube API credentials
-YOUTUBE_API_KEY = 'AIzaSyC4PDLc-MzSrSFnGjP_hIYGvog7XKt8usI'
+YOUTUBE_API_KEY = 'AIzaSyDjG775bzQX8BqnPJmcGiz93lKjvD4si_o'
 
 # YouTube API client
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
